@@ -116,24 +116,26 @@ class Command(BaseCommand):
 
         self.stdout.write("Attaching tags to posts...")
         through = Post.tags.through
+        n_tags_all = [max(1, int(random.gauss(TAGS_PER_POST_AVG, 1))) for _ in range(len(post_ids))]
+        total_slots = sum(n_tags_all)
+        use_hot = random.choices((True, False), weights=(0.4, 0.6), k=total_slots)
+        hot_choices = random.choices(hot_tag_ids, k=total_slots)
+        cold_choices = random.choices(cold_tag_ids, k=total_slots)
+
         m2m_rows = []
-        for pid in post_ids:
-            n_tags = max(1, int(random.gauss(TAGS_PER_POST_AVG, 1)))
+        slot = 0
+        for pid, n in zip(post_ids, n_tags_all):
             chosen = set()
-            for _ in range(n_tags):
-                if random.random() < 0.4 and hot_tag_ids:
-                    chosen.add(random.choice(hot_tag_ids))
-                else:
-                    chosen.add(random.choice(cold_tag_ids))
+            for _ in range(n):
+                chosen.add(hot_choices[slot] if use_hot[slot] else cold_choices[slot])
+                slot += 1
             for tid in chosen:
                 m2m_rows.append(through(post_id=pid, tag_id=tid))
             if len(m2m_rows) >= BATCH * 10:
-                with transaction.atomic():
-                    through.objects.bulk_create(m2m_rows, batch_size=BATCH, ignore_conflicts=True)
+                through.objects.bulk_create(m2m_rows, batch_size=BATCH, ignore_conflicts=True)
                 m2m_rows = []
         if m2m_rows:
-            with transaction.atomic():
-                through.objects.bulk_create(m2m_rows, batch_size=BATCH, ignore_conflicts=True)
+            through.objects.bulk_create(m2m_rows, batch_size=BATCH, ignore_conflicts=True)
 
         self.stdout.write(f"Seeding {NUM_COMMENTS} comments...")
         post_weights = _long_tail_weights(len(post_ids), top_pct=0.01, top_share=0.5)
