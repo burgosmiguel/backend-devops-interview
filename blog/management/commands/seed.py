@@ -30,6 +30,14 @@ class Command(BaseCommand):
             self.stdout.write("Database already has users; pass --force to seed anyway.")
             return
 
+        if opts["force"] and User.objects.exists():
+            self.stdout.write("Deleting existing data...")
+            with transaction.atomic():
+                Comment.objects.all().delete()
+                Post.objects.all().delete()
+                Tag.objects.all().delete()
+                User.objects.all().delete()
+
         fake = Faker()
         Faker.seed(42)
         random.seed(42)
