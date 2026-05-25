@@ -76,34 +76,41 @@ class Command(BaseCommand):
         hot_tag_ids = [t.id for t in tags if t.slug in hot_slugs]
         cold_tag_ids = [t.id for t in tags if t.slug not in hot_slugs]
 
+
         title_pool = [fake.sentence(nb_words=8).rstrip(".") for _ in range(TITLE_POOL_SIZE)]
         body_pool = [fake.text(max_nb_chars=600) for _ in range(BODY_POOL_SIZE)]
-
         author_weights = _power_law_weights(len(user_ids), top_n=10, top_share=0.3)
 
         self.stdout.write(f"Seeding {NUM_POSTS} posts...")
         recent_days = 180
         recency_cutoff = now - timedelta(days=recent_days)
-        with transaction.atomic():
-            for chunk_start in range(0, NUM_POSTS, BATCH):
-                chunk = []
-                for i in range(chunk_start, min(chunk_start + BATCH, NUM_POSTS)):
-                    if random.random() < 0.5:
-                        ts = _random_time(recency_cutoff, now)
-                    else:
-                        ts = _random_time(three_years_ago, now)
-                    author_id = random.choices(user_ids, weights=author_weights, k=1)[0]
-                    chunk.append(
-                        Post(
-                            author_id=author_id,
-                            title=random.choice(title_pool),
-                            body=random.choice(body_pool),
-                            is_published=random.random() < 0.9,
-                            view_count=random.randint(0, 5000),
-                            created_at=ts,
-                        )
-                    )
-                Post.objects.bulk_create(chunk, batch_size=BATCH)
+        recent_secs = int((now - recency_cutoff).total_seconds())
+        full_secs = int((now - three_years_ago).total_seconds())
+
+        post_author_ids = random.choices(user_ids, weights=author_weights, k=NUM_POSTS)
+        post_titles = random.choices(title_pool, k=NUM_POSTS)
+        post_bodies = random.choices(body_pool, k=NUM_POSTS)
+        post_published = random.choices((True, False), weights=(0.9, 0.1), k=NUM_POSTS)
+        post_views = random.choices(range(5001), k=NUM_POSTS)
+        use_recent = random.choices((True, False), k=NUM_POSTS)
+        post_timestamps = [
+            (recency_cutoff if r else three_years_ago) + timedelta(seconds=random.randint(0, recent_secs if r else full_secs))
+            for r in use_recent
+        ]
+
+        for chunk_start in range(0, NUM_POSTS, BATCH):
+            chunk_end = min(chunk_start + BATCH, NUM_POSTS)
+            Post.objects.bulk_create([
+                Post(
+                    author_id=post_author_ids[i],
+                    title=post_titles[i],
+                    body=post_bodies[i],
+                    is_published=post_published[i],
+                    view_count=post_views[i],
+                    created_at=post_timestamps[i],
+                )
+                for i in range(chunk_start, chunk_end)
+            ], batch_size=BATCH)
 
         post_ids = list(Post.objects.values_list("id", flat=True))
 
