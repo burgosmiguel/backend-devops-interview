@@ -45,13 +45,16 @@ class Command(BaseCommand):
         now = timezone.now()
         three_years_ago = now - timedelta(days=365 * 3)
 
+        name_pool = [fake.name() for _ in range(min(NUM_USERS, 500))]
+        bio_pool = [fake.text(max_nb_chars=200) for _ in range(100)]
+
         self.stdout.write("Seeding users...")
         users = [
             User(
                 username=f"user{i:05d}",
                 email=f"user{i:05d}@example.com",
-                display_name=fake.name(),
-                bio=fake.text(max_nb_chars=200) if i % 4 == 0 else "",
+                display_name=random.choice(name_pool),
+                bio=random.choice(bio_pool) if i % 4 == 0 else "",
                 created_at=_random_time(three_years_ago, now),
             )
             for i in range(NUM_USERS)
