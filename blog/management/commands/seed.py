@@ -138,21 +138,27 @@ class Command(BaseCommand):
             through.objects.bulk_create(m2m_rows, batch_size=BATCH, ignore_conflicts=True)
 
         self.stdout.write(f"Seeding {NUM_COMMENTS} comments...")
+        comment_pool = [fake.sentence(nb_words=random.randint(5, 30)) for _ in range(5_000)]
         post_weights = _long_tail_weights(len(post_ids), top_pct=0.01, top_share=0.5)
+        comment_post_ids = random.choices(post_ids, weights=post_weights, k=NUM_COMMENTS)
+        comment_author_ids = random.choices(user_ids, weights=author_weights, k=NUM_COMMENTS)
+        comment_bodies = random.choices(comment_pool, k=NUM_COMMENTS)
+        comment_timestamps = [
+            three_years_ago + timedelta(seconds=random.randint(0, full_secs))
+            for _ in range(NUM_COMMENTS)
+        ]
+
         for chunk_start in range(0, NUM_COMMENTS, BATCH):
-            chunk = []
-            for _ in range(chunk_start, min(chunk_start + BATCH, NUM_COMMENTS)):
-                pid = random.choices(post_ids, weights=post_weights, k=1)[0]
-                aid = random.choices(user_ids, weights=author_weights, k=1)[0]
-                chunk.append(
-                    Comment(
-                        post_id=pid,
-                        author_id=aid,
-                        body=fake.sentence(nb_words=random.randint(5, 30)),
-                        created_at=_random_time(three_years_ago, now),
-                    )
+            chunk_end = min(chunk_start + BATCH, NUM_COMMENTS)
+            Comment.objects.bulk_create([
+                Comment(
+                    post_id=comment_post_ids[i],
+                    author_id=comment_author_ids[i],
+                    body=comment_bodies[i],
+                    created_at=comment_timestamps[i],
                 )
-            Comment.objects.bulk_create(chunk, batch_size=BATCH)
+                for i in range(chunk_start, chunk_end)
+            ], batch_size=BATCH)
 
         self.stdout.write(self.style.SUCCESS("Done."))
 
