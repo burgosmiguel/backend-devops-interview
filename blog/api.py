@@ -42,6 +42,8 @@ def list_posts(request, **kwargs):
 @router.get("/posts/search", response=list[PostListOut])
 @paginate(LimitOffsetPagination)
 def search_posts(request, q: str, **kwargs):
+    if not q or not q.strip():
+        return Post.objects.none()
     return _POST_LIST_QS(
         Post.objects.filter(
             Q(title__icontains=q) | Q(body__icontains=q),
