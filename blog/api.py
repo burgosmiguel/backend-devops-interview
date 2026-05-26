@@ -89,7 +89,7 @@ def get_post(request, post_id: int):
     }
 
 
-@router.post("/posts", response=PostCreateOut)
+@router.post("/posts", response={201: PostCreateOut})
 def create_post(request, payload: PostCreateIn):
     author = get_object_or_404(User, id=payload.author_id)
     post = Post.objects.create(
