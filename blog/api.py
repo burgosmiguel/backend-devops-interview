@@ -1,4 +1,4 @@
-from django.db.models import Q
+from django.db.models import Count, F, Q
 from django.shortcuts import get_object_or_404
 from ninja import Router
 from ninja.pagination import LimitOffsetPagination, paginate
@@ -63,9 +63,11 @@ def posts_by_tag(request, slug: str, **kwargs):
 
 @router.get("/posts/{post_id}", response=PostDetailOut)
 def get_post(request, post_id: int):
-    post = get_object_or_404(Post, id=post_id)
-    post.view_count += 1
-    post.save()
+    post = get_object_or_404(
+        Post.objects.select_related("author").prefetch_related("tags", "comments__author"),
+        id=post_id,
+    )
+    Post.objects.filter(id=post_id).update(view_count=F("view_count") + 1)
 
     comments = [
         {
@@ -83,7 +85,7 @@ def get_post(request, post_id: int):
         "author": _serialize_author(post.author),
         "tags": [_serialize_tag(t) for t in post.tags.all()],
         "comments": comments,
-        "view_count": post.view_count,
+        "view_count": post.view_count + 1,
         "created_at": post.created_at,
         "updated_at": post.updated_at,
     }
@@ -111,15 +113,21 @@ def create_comment(request, post_id: int, payload: CommentCreateIn):
     return {"id": comment.id}
 
 
+_USER_QS = User.objects.annotate(
+    post_count=Count("posts", distinct=True),
+    comment_count=Count("comments", distinct=True),
+)
+
+
 @router.get("/users/find", response=UserDetailOut)
 def find_user_by_email(request, email: str):
-    user = get_object_or_404(User, email=email)
+    user = get_object_or_404(_USER_QS, email=email)
     return _user_detail(user)
 
 
 @router.get("/users/{user_id}", response=UserDetailOut)
 def get_user(request, user_id: int):
-    user = get_object_or_404(User, id=user_id)
+    user = get_object_or_404(_USER_QS, id=user_id)
     return _user_detail(user)
 
 
@@ -130,6 +138,6 @@ def _user_detail(user: User) -> dict:
         "display_name": user.display_name,
         "email": user.email,
         "bio": user.bio,
-        "post_count": user.posts.count(),
-        "comment_count": user.comments.count(),
+        "post_count": user.post_count,
+        "comment_count": user.comment_count,
     }
