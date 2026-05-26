@@ -103,7 +103,7 @@ def create_post(request, payload: PostCreateIn):
     return {"id": post.id, "title": post.title}
 
 
-@router.post("/posts/{post_id}/comments", response=CommentCreateOut)
+@router.post("/posts/{post_id}/comments", response={201: CommentCreateOut})
 def create_comment(request, post_id: int, payload: CommentCreateIn):
     post = get_object_or_404(Post, id=post_id)
     author = get_object_or_404(User, id=payload.author_id)
