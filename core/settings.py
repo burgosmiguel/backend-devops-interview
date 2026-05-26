@@ -1,8 +1,9 @@
+import os
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = "django-insecure-9!^p2zr8m=k$d3v0&xq+1wybho4ag&7lcfu+ej(nti6r%h@m4s"
+SECRET_KEY = os.environ.get("SECRET_KEY", "django-insecure-9!^p2zr8m=k$d3v0&xq+1wybho4ag&7lcfu+ej(nti6r%h@m4s")
 
 DEBUG = True
 
@@ -53,11 +54,11 @@ WSGI_APPLICATION = "core.wsgi.application"
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": "backend_devops_interview",
-        "USER": "postgres",
-        "PASSWORD": "postgres",
-        "HOST": "localhost",
-        "PORT": "5432",
+        "NAME": os.environ.get("DB_NAME", "backend_devops_interview"),
+        "USER": os.environ.get("DB_USER", "postgres"),
+        "PASSWORD": os.environ.get("DB_PASSWORD", "postgres"),
+        "HOST": os.environ.get("DB_HOST", "localhost"),
+        "PORT": os.environ.get("DB_PORT", "5432"),
     }
 }
 
