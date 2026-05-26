@@ -24,5 +24,5 @@ def test_create_comment(client):
         content_type="application/json",
     )
 
-    assert response.status_code == 200
+    assert response.status_code == 201
     assert Comment.objects.filter(post=post, body="Nice post!").exists()
