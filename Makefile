@@ -1,11 +1,12 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help dev build seed test shell logs down lint
+.PHONY: help dev build seed seed-force test shell logs down lint
 
 help:
 	@echo "Usage:"
 	@echo "  make dev    Build images, start everything, seed the DB, then tail logs."
-	@echo "  make seed   Populate the DB (~600k rows). Runs automatically via 'make dev'."
+	@echo "  make seed         Populate the DB (~600k rows). Runs automatically via 'make dev'."
+	@echo "  make seed-force   Same as seed but passes --force."
 	@echo "  make test   Run tests inside the container"
 	@echo "  make shell  Open a shell in the app container"
 	@echo "  make logs   Tail app logs"
@@ -23,6 +24,9 @@ build:
 seed:
 	docker compose exec app uv run python manage.py seed
 
+seed-force:
+	docker compose exec app uv run python manage.py seed --force
+
 test:
 	docker compose run --rm app uv run pytest
 
@@ -34,7 +38,3 @@ logs:
 
 down:
 	docker compose down
-
-lint:
-	docker compose run --rm app uv run ruff check .
-	docker compose run --rm app uv run ruff format --check .
